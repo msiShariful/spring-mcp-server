@@ -33,8 +33,12 @@ It exposes tools to MCP clients (Claude, IDEs, agents) over the **Streamable HTT
 | Capability | Name            | Description                         |
 |------------|-----------------|-------------------------------------|
 | Tool       | `latest_videos` | Returns the list of latest videos.  |
+| Tool       | `get_current_weather(city)` | Live weather for any city: temperature, feels-like, humidity, wind, conditions. |
+| Tool       | `get_forecast(city, days?)` | Daily forecast (1–16 days, default 3): min/max temperature, conditions, chance of rain. |
 | Resources  | _planned_       |                                     |
 | Prompts    | _planned_       |                                     |
+
+Weather data comes from [Open-Meteo](https://open-meteo.com), which is free and needs no API key.
 
 ## Tech stack
 
