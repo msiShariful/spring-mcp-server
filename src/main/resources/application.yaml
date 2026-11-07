@@ -10,3 +10,19 @@ spring:
         type: sync
         name: mcp-server
         version: 1.0.0
+
+  # Tasks are stored in a local H2 database file (./data/tasks.mv.db),
+  # so they survive restarts. Swap this for PostgreSQL/MySQL in production.
+  datasource:
+    url: jdbc:h2:file:./data/tasks
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+app:
+  # Until authentication is added, every request acts as this user.
+  # See user/CurrentUserProvider.java.
+  demo-user: demo

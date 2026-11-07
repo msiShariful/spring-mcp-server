@@ -36,10 +36,22 @@ It exposes tools to MCP clients (Claude, IDEs, agents) over the **Streamable HTT
 |------------|-----------------|-------------------------------------|
 | Tool       | `get_current_weather(city)` | Live weather for any city: temperature, feels-like, humidity, wind, conditions. |
 | Tool       | `get_forecast(city, days?)` | Daily forecast (1–16 days, default 3): min/max temperature, conditions, chance of rain. |
+| Tool 🔒    | `create_task(title, description?, priority?, dueDate?)` | Add a task to the user's to-do list. |
+| Tool 🔒    | `list_tasks(status?, priority?, overdueOnly?)` | List tasks sorted by due date, with optional filters. |
+| Tool 🔒    | `get_task(taskId)` | Full details of one task. |
+| Tool 🔒    | `update_task(taskId, title?, description?, status?, priority?, dueDate?)` | Change only the given fields. |
+| Tool 🔒    | `complete_task(taskId)` | Mark a task as done. |
+| Tool 🔒    | `delete_task(taskId)` | Permanently delete a task (marked as destructive). |
+| Tool 🔒    | `task_summary()` | Totals by status, overdue and due today. |
 | Resources  | _planned_       |                                     |
 | Prompts    | _planned_       |                                     |
 
 Weather data comes from [Open-Meteo](https://open-meteo.com), which is free and needs no API key.
+
+🔒 = works with the user's own data. These tools are ready to be put behind authentication (see [Adding authentication](#adding-authentication)).
+Tasks are stored in a local H2 database file (`./data/tasks.mv.db`), so they survive restarts.
+
+Every tool declares MCP safety hints (`readOnlyHint`, `destructiveHint`, `openWorldHint`) so AI clients know which tools only read data, which can delete data, and which call outside services.
 
 ## Tech stack
 
@@ -58,6 +70,14 @@ spring-mcp/
     ├── main/
     │   ├── java/com/islamshariful/spring_mcp/
     │   │   ├── SpringMcpApplication.java   # Spring Boot entry point
+    │   │   ├── user/
+    │   │   │   ├── CurrentUserProvider.java # "Who is calling?" (swap in auth later)
+    │   │   │   └── DemoUserProvider.java   # Temporary: everyone is "demo"
+    │   │   ├── tasks/
+    │   │   │   ├── TaskTools.java          # @McpTool definitions (task tools)
+    │   │   │   ├── TaskService.java        # Business logic, always scoped to the current user
+    │   │   │   ├── TaskRepository.java     # Spring Data JPA queries
+    │   │   │   └── Task.java               # JPA entity
     │   │   └── weather/
     │   │       ├── WeatherTools.java       # @McpTool definitions (weather tools)
     │   │       ├── OpenMeteoClient.java    # Calls the Open-Meteo API
@@ -66,7 +86,8 @@ spring-mcp/
     │       └── application.yaml            # MCP server configuration
     └── test/
         └── java/com/islamshariful/spring_mcp/
-            └── SpringMcpApplicationTests.java
+            ├── SpringMcpApplicationTests.java
+            └── tasks/TaskServiceTest.java  # Includes a test that users can't see each other's tasks
 ```
 
 ## Prerequisites
@@ -255,6 +276,32 @@ The same commands work through Docker:
 docker run --rm ghcr.io/modelcontextprotocol/inspector \
   --cli http://host.docker.internal:8080/mcp --method tools/list
 ```
+
+---
+
+## Adding authentication
+
+The task tools never read a user id from the request. They ask `CurrentUserProvider` who is calling,
+and every database query filters by that user. Today `DemoUserProvider` returns `demo` for everyone.
+
+To add real authentication:
+
+1. Add `spring-boot-starter-security` (and, for example, `spring-boot-starter-oauth2-resource-server` for JWT tokens).
+2. Protect the `/mcp` endpoint in a `SecurityFilterChain`.
+3. Add a `CurrentUserProvider` that reads the logged-in user:
+
+   ```java
+   @Component
+   @Primary
+   public class SecurityUserProvider implements CurrentUserProvider {
+       public String currentUserId() {
+           return SecurityContextHolder.getContext().getAuthentication().getName();
+       }
+   }
+   ```
+
+No tool code needs to change. `TaskServiceTest.usersOnlySeeTheirOwnTasks` already checks that one user
+can't read, change, or delete another user's tasks.
 
 ---
 

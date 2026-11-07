@@ -4,6 +4,7 @@ import com.islamshariful.spring_mcp.weather.OpenMeteoClient.Current;
 import com.islamshariful.spring_mcp.weather.OpenMeteoClient.Daily;
 import com.islamshariful.spring_mcp.weather.OpenMeteoClient.Location;
 import org.springframework.ai.mcp.annotation.McpTool;
+import org.springframework.ai.mcp.annotation.McpTool.McpAnnotations;
 import org.springframework.ai.mcp.annotation.McpToolParam;
 import org.springframework.stereotype.Component;
 
@@ -25,7 +26,9 @@ public class WeatherTools {
     }
 
     @McpTool(name = "get_current_weather",
-            description = "Get the current weather (temperature, feels-like, humidity, wind, conditions) for a city.")
+            description = "Get the current weather (temperature, feels-like, humidity, wind, conditions) for a city.",
+            annotations = @McpAnnotations(title = "Current weather", readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = true))
     public CurrentWeather getCurrentWeather(
             @McpToolParam(description = "City name, e.g. 'Dhaka' or 'London'") String city) {
 
@@ -43,7 +46,9 @@ public class WeatherTools {
     }
 
     @McpTool(name = "get_forecast",
-            description = "Get the daily weather forecast for a city: min/max temperature, conditions and chance of rain for each day.")
+            description = "Get the daily weather forecast for a city: min/max temperature, conditions and chance of rain for each day.",
+            annotations = @McpAnnotations(title = "Weather forecast", readOnlyHint = true, destructiveHint = false,
+                    idempotentHint = true, openWorldHint = true))
     public Forecast getForecast(
             @McpToolParam(description = "City name, e.g. 'Dhaka' or 'London'") String city,
             @McpToolParam(description = "Number of days to forecast, from 1 to 16. Defaults to 3.", required = false) Integer days) {
