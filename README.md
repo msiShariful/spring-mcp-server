@@ -32,7 +32,6 @@ It exposes tools to MCP clients (Claude, IDEs, agents) over the **Streamable HTT
 
 | Capability | Name            | Description                         |
 |------------|-----------------|-------------------------------------|
-| Tool       | `latest_videos` | Returns the list of latest videos.  |
 | Tool       | `get_current_weather(city)` | Live weather for any city: temperature, feels-like, humidity, wind, conditions. |
 | Tool       | `get_forecast(city, days?)` | Daily forecast (1–16 days, default 3): min/max temperature, conditions, chance of rain. |
 | Resources  | _planned_       |                                     |
@@ -57,7 +56,10 @@ spring-mcp/
     ├── main/
     │   ├── java/com/islamshariful/spring_mcp/
     │   │   ├── SpringMcpApplication.java   # Spring Boot entry point
-    │   │   └── McpTools.java               # @McpTool definitions
+    │   │   └── weather/
+    │   │       ├── WeatherTools.java       # @McpTool definitions (weather tools)
+    │   │       ├── OpenMeteoClient.java    # Calls the Open-Meteo API
+    │   │       └── WeatherCodes.java       # Weather code -> text (e.g. 61 -> "Light rain")
     │   └── resources/
     │       └── application.yaml            # MCP server configuration
     └── test/
@@ -185,13 +187,16 @@ In the Inspector:
    | URL            | `http://host.docker.internal:8080/mcp`    |
 
 3. Save, then turn on the server's toggle. The status should change to **Connected**.
-4. Open the **Tools** tab, click **List Tools**, select `latest_videos`, and click **Run Tool**.
+4. Open the **Tools** tab, click **List Tools**, select `get_current_weather`, enter a city (e.g. `Dhaka`), and click **Run Tool**.
 
 Expected result:
 
 ```json
 {
-  "content": [{ "type": "text", "text": "This is a latest videos list" }],
+  "content": [{
+    "type": "text",
+    "text": "{\"location\":\"Dhaka, Bangladesh\",\"temperatureC\":29.3,\"feelsLikeC\":33.1,\"humidityPercent\":58,\"windSpeedKmh\":6.8,\"conditions\":\"Clear sky\", ...}"
+  }],
   "isError": false
 }
 ```
@@ -233,9 +238,13 @@ This option works well for quick checks and CI scripts.
 # List all tools
 npx @modelcontextprotocol/inspector --cli http://localhost:8080/mcp --method tools/list
 
-# Call the latest_videos tool
+# Current weather in Dhaka
 npx @modelcontextprotocol/inspector --cli http://localhost:8080/mcp \
-  --method tools/call --tool-name latest_videos
+  --method tools/call --tool-name get_current_weather --tool-arg city=Dhaka
+
+# 5-day forecast for London
+npx @modelcontextprotocol/inspector --cli http://localhost:8080/mcp \
+  --method tools/call --tool-name get_forecast --tool-arg city=London --tool-arg days=5
 ```
 
 The same commands work through Docker:
@@ -260,14 +269,17 @@ Then run `/mcp` inside Claude Code to check that the server is connected.
 ## Adding a new tool
 
 Add a method annotated with `@McpTool` to a Spring `@Component`. Spring AI registers it automatically.
+Use `@McpToolParam` to describe each input. This example is from `WeatherTools.java`:
 
 ```java
 @Component
-public class McpTools {
+public class WeatherTools {
 
-    @McpTool(name = "latest_videos", description = "This is the tool with latest videos list")
-    public String getLatestVideos() {
-        return "This is a latest videos list";
+    @McpTool(name = "get_current_weather",
+            description = "Get the current weather (temperature, feels-like, humidity, wind, conditions) for a city.")
+    public CurrentWeather getCurrentWeather(
+            @McpToolParam(description = "City name, e.g. 'Dhaka' or 'London'") String city) {
+        // call the API and return a record; Spring AI sends it to the AI as JSON
     }
 }
 ```
