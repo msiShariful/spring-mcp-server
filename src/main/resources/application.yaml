@@ -10,3 +10,30 @@ spring:
         type: sync
         name: mcp-server
         version: 1.0.0
+
+  # Tasks are stored in a local H2 database file (./data/tasks.mv.db),
+  # so they survive restarts. Swap this for PostgreSQL/MySQL in production.
+  datasource:
+    url: jdbc:h2:file:./data/tasks
+    username: sa
+    password: ""
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+app:
+  security:
+    # API keys for the task tools. Only the SHA-256 HASH of each key is stored here,
+    # so this file is safe to commit. The real keys are kept secret by their owners.
+    #
+    # Create a new key and its hash:
+    #   KEY="mcp_$(openssl rand -hex 24)"; echo "$KEY"
+    #   printf %s "$KEY" | shasum -a 256
+    #
+    # Clients send the key as:  Authorization: Bearer <key>   (or  X-API-Key: <key>)
+    api-keys:
+      - user: sharif
+        sha256: 2bbe1ef06695a0f367905f41ba1f592fe1d64b9b8fa5ee8626c2164e2164159b
+      - user: guest
+        sha256: 4a04fb350251cbf88b52725e7a9d8118ed0c3a27394c6cc9ec108494d2765d2c
