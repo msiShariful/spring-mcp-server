@@ -24,6 +24,7 @@ It exposes tools to MCP clients (Claude, IDEs, agents) over the **Streamable HTT
   - [Option A: Inspector in a Docker container](#option-a-inspector-in-a-docker-container)
   - [Option B: Inspector with npx](#option-b-inspector-with-npx)
   - [Option C: Inspector CLI (no UI)](#option-c-inspector-cli-no-ui)
+- [Authentication](#authentication)
 - [Connecting from Claude Code](#connecting-from-claude-code)
 - [Adding a new tool](#adding-a-new-tool)
 - [Troubleshooting](#troubleshooting)
@@ -48,7 +49,7 @@ It exposes tools to MCP clients (Claude, IDEs, agents) over the **Streamable HTT
 
 Weather data comes from [Open-Meteo](https://open-meteo.com), which is free and needs no API key.
 
-🔒 = works with the user's own data. These tools are ready to be put behind authentication (see [Adding authentication](#adding-authentication)).
+🔒 = needs an API key. Each key belongs to one user, and users only see their own tasks (see [Authentication](#authentication)). Weather tools are public.
 Tasks are stored in a local H2 database file (`./data/tasks.mv.db`), so they survive restarts.
 
 Every tool declares MCP safety hints (`readOnlyHint`, `destructiveHint`, `openWorldHint`) so AI clients know which tools only read data, which can delete data, and which call outside services.
@@ -70,9 +71,13 @@ spring-mcp/
     ├── main/
     │   ├── java/com/islamshariful/spring_mcp/
     │   │   ├── SpringMcpApplication.java   # Spring Boot entry point
+    │   │   ├── security/
+    │   │   │   ├── SecurityConfig.java     # Spring Security setup
+    │   │   │   ├── ApiKeyAuthenticationFilter.java # Checks the API key on each request
+    │   │   │   └── ApiKeyProperties.java   # Reads app.security.api-keys
     │   │   ├── user/
-    │   │   │   ├── CurrentUserProvider.java # "Who is calling?" (swap in auth later)
-    │   │   │   └── DemoUserProvider.java   # Temporary: everyone is "demo"
+    │   │   │   ├── CurrentUserProvider.java # "Who is calling?"
+    │   │   │   └── SecurityUserProvider.java # Returns the logged-in user, refuses anonymous callers
     │   │   ├── tasks/
     │   │   │   ├── TaskTools.java          # @McpTool definitions (task tools)
     │   │   │   ├── TaskService.java        # Business logic, always scoped to the current user
@@ -87,7 +92,8 @@ spring-mcp/
     └── test/
         └── java/com/islamshariful/spring_mcp/
             ├── SpringMcpApplicationTests.java
-            └── tasks/TaskServiceTest.java  # Includes a test that users can't see each other's tasks
+            ├── tasks/TaskServiceTest.java  # Includes a test that users can't see each other's tasks
+            └── security/McpAuthenticationTest.java # End-to-end auth test using the MCP Java client
 ```
 
 ## Prerequisites
@@ -279,38 +285,77 @@ docker run --rm ghcr.io/modelcontextprotocol/inspector \
 
 ---
 
-## Adding authentication
+## Authentication
 
-The task tools never read a user id from the request. They ask `CurrentUserProvider` who is calling,
-and every database query filters by that user. Today `DemoUserProvider` returns `demo` for everyone.
+Task tools need an **API key**. Weather tools stay public.
 
-To add real authentication:
+| Request | Result |
+|---|---|
+| No key | Weather tools work. Task tools return *"Authentication required"*. |
+| Valid key | Logged in as the key's user. Task tools only see that user's tasks. |
+| Wrong key | Rejected with HTTP **401** `{"error":"Invalid API key"}` |
 
-1. Add `spring-boot-starter-security` (and, for example, `spring-boot-starter-oauth2-resource-server` for JWT tokens).
-2. Protect the `/mcp` endpoint in a `SecurityFilterChain`.
-3. Add a `CurrentUserProvider` that reads the logged-in user:
+Send the key in either header:
 
-   ```java
-   @Component
-   @Primary
-   public class SecurityUserProvider implements CurrentUserProvider {
-       public String currentUserId() {
-           return SecurityContextHolder.getContext().getAuthentication().getName();
-       }
-   }
-   ```
+```
+Authorization: Bearer <your-api-key>
+X-API-Key: <your-api-key>
+```
 
-No tool code needs to change. `TaskServiceTest.usersOnlySeeTheirOwnTasks` already checks that one user
-can't read, change, or delete another user's tasks.
+### Managing keys
+
+Keys are listed in `application.yaml`. Only the **SHA-256 hash** of each key is stored, so the file is safe to commit:
+
+```yaml
+app:
+  security:
+    api-keys:
+      - user: sharif
+        sha256: 2bbe1ef0...
+```
+
+To add a user, create a key and its hash, then add a new entry:
+
+```bash
+KEY="mcp_$(openssl rand -hex 24)"; echo "Key: $KEY"
+printf %s "$KEY" | shasum -a 256
+```
+
+Give the key to the user and keep it secret. To revoke a key, delete its entry and restart.
+
+### Using a key
+
+**MCP Inspector:** in the server's connection settings, add a header named `Authorization` with the value `Bearer <your-api-key>`, then reconnect.
+
+**Inspector CLI:**
+
+```bash
+npx @modelcontextprotocol/inspector --cli http://localhost:8080/mcp \
+  --method tools/call --tool-name list_tasks \
+  --header "Authorization: Bearer $MCP_API_KEY"
+```
+
+### How it works
+
+1. `ApiKeyAuthenticationFilter` hashes the key from the request and looks it up (constant-time compare).
+2. A valid key logs the request in as that user. No sessions or cookies are used.
+3. Task tools ask `CurrentUserProvider` who is calling. `SecurityUserProvider` returns the logged-in user or refuses anonymous calls.
+4. Every task query filters by that user, so one user can never read, change, or delete another user's tasks.
+
+`McpAuthenticationTest` checks all of this end to end with the official MCP Java client.
+
+To move to OAuth2/JWT later, replace the API key filter with `spring-boot-starter-oauth2-resource-server`. The tools and `SecurityUserProvider` stay the same.
 
 ---
 
 ## Connecting from Claude Code
 
 ```bash
-claude mcp add --transport http spring-mcp http://localhost:8080/mcp
+claude mcp add --transport http spring-mcp http://localhost:8080/mcp \
+  --header "Authorization: Bearer $MCP_API_KEY"
 ```
 
+Leave out `--header` to use only the public weather tools.
 Then run `/mcp` inside Claude Code to check that the server is connected.
 
 ---
@@ -347,6 +392,8 @@ Restart the server, then click **List Tools** in the Inspector again to see the 
 | Inspector: **Connection refused**               | The Spring server isn't running, or (in Docker) you used `localhost` instead of `host.docker.internal`. |
 | Inspector: **404 Not Found**                    | Wrong path. The endpoint is `/mcp` unless you changed `mcp-endpoint`.                      |
 | Inspector connects but the call fails           | The transport type must be **Streamable HTTP**, not SSE or STDIO.                          |
+| Task tool: **Authentication required**          | Add the `Authorization: Bearer <key>` header and reconnect.                                 |
+| HTTP **401 Invalid API key**                    | The key is wrong or was removed from `app.security.api-keys`. Check for typos or extra spaces. |
 | Build fails with `invalid target release: 25`   | Install JDK 25 and point `JAVA_HOME` to it.                                                 |
 
 ---
