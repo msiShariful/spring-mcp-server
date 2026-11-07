@@ -11,20 +11,27 @@
 	<groupId>com.islamshariful</groupId>
 	<artifactId>spring-mcp</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name/>
-	<description/>
-	<url/>
+	<name>Spring MCP Server</name>
+	<description>Model Context Protocol (MCP) server built with Spring Boot and Spring AI, exposing real-world tools such as live weather over Streamable HTTP.</description>
+	<url>https://github.com/msiShariful/spring-mcp-server</url>
 	<licenses>
-		<license/>
+		<license>
+			<name>MIT License</name>
+			<url>https://opensource.org/licenses/MIT</url>
+		</license>
 	</licenses>
 	<developers>
-		<developer/>
+		<developer>
+			<id>msiShariful</id>
+			<name>Shariful Islam</name>
+			<url>https://github.com/msiShariful</url>
+		</developer>
 	</developers>
 	<scm>
-		<connection/>
-		<developerConnection/>
-		<tag/>
-		<url/>
+		<connection>scm:git:https://github.com/msiShariful/spring-mcp-server.git</connection>
+		<developerConnection>scm:git:git@github.com:msiShariful/spring-mcp-server.git</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/msiShariful/spring-mcp-server</url>
 	</scm>
 	<properties>
 		<java.version>25</java.version>

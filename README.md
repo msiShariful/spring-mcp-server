@@ -3,6 +3,8 @@
 A [Model Context Protocol (MCP)](https://modelcontextprotocol.io) server built with **Spring Boot** and **Spring AI**.
 It exposes tools to MCP clients (Claude, IDEs, agents) over the **Streamable HTTP** transport.
 
+[![CI](https://github.com/msiShariful/spring-mcp-server/actions/workflows/ci.yml/badge.svg)](https://github.com/msiShariful/spring-mcp-server/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Java](https://img.shields.io/badge/Java-25-orange)
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.2-brightgreen)
 ![Spring AI](https://img.shields.io/badge/Spring%20AI-2.0.1-blue)
@@ -302,6 +304,14 @@ Restart the server, then click **List Tools** in the Inspector again to see the 
 
 ---
 
+## Contributing
+
+Issues and pull requests are welcome. For bigger changes, please open an issue first to discuss what you'd like to change.
+
+1. Fork the repo and create a branch: `git checkout -b feature/my-tool`
+2. Make your change and run `./mvnw verify`
+3. Open a pull request against `master`
+
 ## License
 
-This project is for learning and demonstration purposes.
+Released under the [MIT License](LICENSE).
