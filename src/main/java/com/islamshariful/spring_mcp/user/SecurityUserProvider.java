@@ -26,7 +26,7 @@ public class SecurityUserProvider implements CurrentUserProvider {
     /** Shown to the AI client as the tool error message. */
     public static class AuthenticationRequiredException extends RuntimeException {
         public AuthenticationRequiredException() {
-            super("Authentication required: this tool needs an API key. "
+            super("Authentication required: task tools and resources need an API key. "
                     + "Send it as the header 'Authorization: Bearer <your-api-key>'.");
         }
     }

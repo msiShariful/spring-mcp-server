@@ -31,6 +31,12 @@ spring:
           - update_task changes only the fields you pass. Use complete_task to mark a task done.
           - delete_task is permanent. Always confirm with the user before deleting.
 
+          Resources (context the user can attach):
+          - weather://{city}: current weather and 3-day forecast as a report.
+          - tasks://open and tasks://{id}: the user's open tasks or one task (need an API key).
+
+          Prompts (workflows the user can start): plan_my_day, weekly_review, trip_prep.
+
   # Tasks are stored in a local H2 database file (./data/tasks.mv.db),
   # so they survive restarts. Swap this for PostgreSQL/MySQL in production.
   datasource:

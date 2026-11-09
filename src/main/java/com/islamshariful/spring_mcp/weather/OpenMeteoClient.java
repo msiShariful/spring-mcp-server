@@ -48,18 +48,24 @@ public class OpenMeteoClient {
             throw new IllegalArgumentException("Please provide a city name.");
         }
 
+        List<Location> results = searchCities(city, 1);
+        if (results.isEmpty()) {
+            throw new IllegalArgumentException("City not found: " + city);
+        }
+        return results.getFirst();
+    }
+
+    /** Finds up to {@code count} cities whose name starts like {@code name}, biggest first. Used for autocomplete. */
+    public List<Location> searchCities(String name, int count) {
         GeocodingResponse response = call(() -> geocodingApi.get()
                 .uri(uri -> uri.path("/v1/search")
-                        .queryParam("name", city)
-                        .queryParam("count", 1)
+                        .queryParam("name", name.strip())
+                        .queryParam("count", count)
                         .build())
                 .retrieve()
                 .body(GeocodingResponse.class));
 
-        if (response == null || response.results() == null || response.results().isEmpty()) {
-            throw new IllegalArgumentException("City not found: " + city);
-        }
-        return response.results().getFirst();
+        return (response == null || response.results() == null) ? List.of() : response.results();
     }
 
     /** Gets current weather plus a daily forecast for the given number of days. */
