@@ -10,6 +10,26 @@ spring:
         type: sync
         name: mcp-server
         version: 1.0.0
+        # Sent to AI clients when they connect. Tells the model how to use this server.
+        instructions: |
+          This server offers live weather data and a personal task manager.
+
+          Weather (public, no API key needed):
+          - get_current_weather: current conditions for a city.
+          - get_forecast: daily forecast for 1-16 days (default 3). Use it for questions about
+            upcoming days, e.g. "Do I need an umbrella tomorrow?".
+          - Pass a plain city name, e.g. "Dhaka" or "London". If a city isn't found, ask the user
+            for a nearby larger city or add the country.
+
+          Tasks (need an API key; each user only sees their own tasks):
+          - If a task tool returns "Authentication required", tell the user to connect with
+            their API key. Don't retry.
+          - Start with task_summary or list_tasks to see what exists before changing anything.
+          - Refer to tasks by id. Use list_tasks to find the id if the user gives a title.
+          - Dates use YYYY-MM-DD. Convert words like "Friday" or "next week" to a date first.
+          - Priority is LOW, MEDIUM or HIGH. Status is TODO, IN_PROGRESS or DONE.
+          - update_task changes only the fields you pass. Use complete_task to mark a task done.
+          - delete_task is permanent. Always confirm with the user before deleting.
 
   # Tasks are stored in a local H2 database file (./data/tasks.mv.db),
   # so they survive restarts. Swap this for PostgreSQL/MySQL in production.
