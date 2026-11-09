@@ -44,10 +44,17 @@ It exposes tools to MCP clients (Claude, IDEs, agents) over the **Streamable HTT
 | Tool 🔒    | `complete_task(taskId)` | Mark a task as done. |
 | Tool 🔒    | `delete_task(taskId)` | Permanently delete a task (marked as destructive). |
 | Tool 🔒    | `task_summary()` | Totals by status, overdue and due today. |
-| Resources  | _planned_       |                                     |
-| Prompts    | _planned_       |                                     |
+| Resource   | `weather://{city}` | Current weather and 3-day forecast as a Markdown report. |
+| Resource 🔒 | `tasks://open` | All of the user's open tasks. |
+| Resource 🔒 | `tasks://{id}` | Full details of one task. |
+| Prompt     | `plan_my_day(city)` | Plan today from the weather and your open tasks. |
+| Prompt     | `weekly_review()` | Review done, overdue and upcoming tasks; pick next week's focus. |
+| Prompt     | `trip_prep(city, days?)` | Trip forecast, packing list, and optional prep tasks. |
+| Completion | city, days, task id | Autocomplete for prompt and resource arguments (live city search, your own task ids). |
 
 Weather data comes from [Open-Meteo](https://open-meteo.com), which is free and needs no API key.
+
+**When to use which:** a **tool** is something the model decides to *do*, a **resource** is context the user or app *picks* to share, a **prompt** is a repeatable workflow the user *starts*, and **completions** autocomplete their arguments.
 
 🔒 = needs an API key. Each key belongs to one user, and users only see their own tasks (see [Authentication](#authentication)). Weather tools are public.
 Tasks are stored in a local H2 database file (`./data/tasks.mv.db`), so they survive restarts.
@@ -71,6 +78,10 @@ spring-mcp/
     ├── main/
     │   ├── java/com/islamshariful/spring_mcp/
     │   │   ├── SpringMcpApplication.java   # Spring Boot entry point
+    │   │   ├── prompts/
+    │   │   │   └── WorkflowPrompts.java    # @McpPrompt: plan_my_day, weekly_review, trip_prep
+    │   │   ├── completions/
+    │   │   │   └── ArgumentCompletions.java # @McpComplete: city, days, task id autocomplete
     │   │   ├── security/
     │   │   │   ├── SecurityConfig.java     # Spring Security setup
     │   │   │   ├── ApiKeyAuthenticationFilter.java # Checks the API key on each request
@@ -80,11 +91,13 @@ spring-mcp/
     │   │   │   └── SecurityUserProvider.java # Returns the logged-in user, refuses anonymous callers
     │   │   ├── tasks/
     │   │   │   ├── TaskTools.java          # @McpTool definitions (task tools)
+    │   │   │   ├── TaskResources.java      # @McpResource: tasks://open, tasks://{id}
     │   │   │   ├── TaskService.java        # Business logic, always scoped to the current user
     │   │   │   ├── TaskRepository.java     # Spring Data JPA queries
     │   │   │   └── Task.java               # JPA entity
     │   │   └── weather/
     │   │       ├── WeatherTools.java       # @McpTool definitions (weather tools)
+    │   │       ├── WeatherResources.java   # @McpResource: weather://{city}
     │   │       ├── OpenMeteoClient.java    # Calls the Open-Meteo API
     │   │       └── WeatherCodes.java       # Weather code -> text (e.g. 61 -> "Light rain")
     │   └── resources/
@@ -92,6 +105,8 @@ spring-mcp/
     └── test/
         └── java/com/islamshariful/spring_mcp/
             ├── SpringMcpApplicationTests.java
+            ├── McpTestSupport.java         # Connects the MCP Java client with an API key
+            ├── ResourcesPromptsCompletionsTest.java # End-to-end tests for resources, prompts, autocomplete
             ├── tasks/TaskServiceTest.java  # Includes a test that users can't see each other's tasks
             └── security/McpAuthenticationTest.java # End-to-end auth test using the MCP Java client
 ```

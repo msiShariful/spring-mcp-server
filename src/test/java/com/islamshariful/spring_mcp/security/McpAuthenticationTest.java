@@ -1,8 +1,7 @@
 package com.islamshariful.spring_mcp.security;
 
-import io.modelcontextprotocol.client.McpClient;
+import com.islamshariful.spring_mcp.McpTestSupport;
 import io.modelcontextprotocol.client.McpSyncClient;
-import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
 import io.modelcontextprotocol.spec.McpSchema.CallToolRequest;
 import io.modelcontextprotocol.spec.McpSchema.CallToolResult;
 import io.modelcontextprotocol.spec.McpSchema.TextContent;
@@ -12,11 +11,10 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 
-import java.net.http.HttpRequest;
-import java.time.Duration;
-import java.util.HexFormat;
 import java.util.Map;
 
+import static com.islamshariful.spring_mcp.McpTestSupport.ALICE_KEY;
+import static com.islamshariful.spring_mcp.McpTestSupport.BOB_KEY;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -28,16 +26,9 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
         properties = "spring.datasource.url=jdbc:h2:mem:auth-test")
 class McpAuthenticationTest {
 
-    private static final String ALICE_KEY = "test-key-alice";
-    private static final String BOB_KEY = "test-key-bob";
-
-    /** Replace the real keys from application.yaml with test keys. */
     @DynamicPropertySource
     static void apiKeys(DynamicPropertyRegistry registry) {
-        registry.add("app.security.api-keys[0].user", () -> "alice");
-        registry.add("app.security.api-keys[0].sha256", () -> hash(ALICE_KEY));
-        registry.add("app.security.api-keys[1].user", () -> "bob");
-        registry.add("app.security.api-keys[1].sha256", () -> hash(BOB_KEY));
+        McpTestSupport.registerTestApiKeys(registry);
     }
 
     @LocalServerPort
@@ -76,17 +67,7 @@ class McpAuthenticationTest {
     // ---- helpers ----
 
     private McpSyncClient connect(String apiKey) {
-        HttpRequest.Builder request = HttpRequest.newBuilder();
-        if (apiKey != null) {
-            request.header("Authorization", "Bearer " + apiKey);
-        }
-        var transport = HttpClientStreamableHttpTransport.builder("http://localhost:" + port)
-                .endpoint("/mcp")
-                .requestBuilder(request)
-                .build();
-        McpSyncClient client = McpClient.sync(transport).requestTimeout(Duration.ofSeconds(10)).build();
-        client.initialize();
-        return client;
+        return McpTestSupport.connect(port, apiKey);
     }
 
     private static CallToolResult call(McpSyncClient client, String tool, Map<String, Object> arguments) {
@@ -95,9 +76,5 @@ class McpAuthenticationTest {
 
     private static String text(CallToolResult result) {
         return ((TextContent) result.content().getFirst()).text();
-    }
-
-    private static String hash(String key) {
-        return HexFormat.of().formatHex(ApiKeyAuthenticationFilter.sha256(key));
     }
 }
